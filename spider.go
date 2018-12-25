@@ -15,13 +15,44 @@ import (
 	"sync/atomic"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/antchfx/htmlquery"
-	"github.com/antchfx/xmlquery"
 	"github.com/flyingyizi/spider/core"
 	"github.com/flyingyizi/spider/query"
 	"github.com/flyingyizi/spider/storage"
-	"golang.org/x/net/html"
 )
+
+//ISpider ...
+type ISpider interface {
+	// Visit starts Collector's collecting job by creating a
+	// request to the URL specified in parameter.
+	// Visit also calls the previously provided callbacks
+	Visit(URL string) error
+
+	// OnRequest registers a function. Function will be executed on every
+	// request made by the Collector
+	OnRequest(f RequestCallback)
+
+	// OnResponse registers a function. Function will be executed on every response
+	OnResponse(f ResponseCallback)
+
+	// OnHTML registers a function. Function will be executed on every HTML
+	// element matched by the GoQuery Selector parameter.
+	// GoQuery Selector is a selector used by https://github.com/PuerkitoBio/goquery
+	OnHTML(goquerySelector string, f HTMLCallback)
+
+	// OnHTMLDetach deregister a function. Function will not be execute after detached
+	OnHTMLDetach(goquerySelector string)
+
+	// // OnXMLDetach deregister a function. Function will not be execute after detached
+	//  OnXMLDetach(xpathQuery string)
+
+	// OnError registers a function. Function will be executed if an error
+	// occurs during the HTTP request.
+	OnError(f ErrorCallback)
+
+	// OnScraped registers a function. Function will be executed after
+	// OnHTML, as a final part of the scraping.
+	OnScraped(f ScrapedCallback)
+}
 
 // Package spider implements a HTTP scraping framework
 
@@ -108,8 +139,8 @@ type Collector struct {
 	store           storage.Storage
 	//todo debugger          debug.Debugger
 	//todo robotsMap         map[string]*robotstxt.RobotsData
-	htmlCallbacks     []*htmlCallbackContainer
-	xmlCallbacks      []*xmlCallbackContainer
+	htmlCallbacks []*htmlCallbackContainer
+	//todo xmlCallbacks      []*xmlCallbackContainer
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
@@ -121,23 +152,27 @@ type Collector struct {
 	lock              *sync.RWMutex
 }
 
+type Request = core.Request
+type Response = core.Response
+type HTMLElement = query.HTMLElement
+
 // RequestCallback is a type alias for OnRequest callback functions
-type RequestCallback func(*core.Request)
+type RequestCallback func(*Request)
 
 // ResponseCallback is a type alias for OnResponse callback functions
-type ResponseCallback func(*core.Response)
+type ResponseCallback func(*Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*query.HTMLElement)
+type HTMLCallback func(*HTMLElement)
 
-// XMLCallback is a type alias for OnXML callback functions
-type XMLCallback func(*query.XMLElement)
+// // XMLCallback is a type alias for OnXML callback functions
+// type XMLCallback func(*query.XMLElement)
 
 // ErrorCallback is a type alias for OnError callback functions
-type ErrorCallback func(*core.Response, error)
+type ErrorCallback func(*Response, error)
 
 // ScrapedCallback is a type alias for OnScraped callback functions
-type ScrapedCallback func(*core.Response)
+type ScrapedCallback func(*Response)
 
 // // ProxyFunc is a type alias for proxy setter functions.
 // type ProxyFunc func(*http.Request) (*url.URL, error)
@@ -147,10 +182,10 @@ type htmlCallbackContainer struct {
 	Function HTMLCallback
 }
 
-type xmlCallbackContainer struct {
-	Query    string
-	Function XMLCallback
-}
+// type xmlCallbackContainer struct {
+// 	Query    string
+// 	Function XMLCallback
+// }
 
 // type cookieJarSerializer struct {
 // 	store storage.Storage
@@ -236,7 +271,7 @@ var (
 // }
 
 // NewCollector creates a new Collector instance with default configuration
-func NewCollector(options ...func(*Collector)) *Collector {
+func NewCollector(options ...spiderOption) *Collector {
 	c := &Collector{}
 	c.Init()
 
@@ -249,116 +284,6 @@ func NewCollector(options ...func(*Collector)) *Collector {
 
 	return c
 }
-
-// // UserAgent sets the user agent used by the Collector.
-// func UserAgent(ua string) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.userAgent = ua
-// 	}
-// }
-
-// // MaxDepth limits the recursion depth of visited URLs.
-// func MaxDepth(depth int) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.MaxDepth = depth
-// 	}
-// }
-
-// AllowedDomains sets the domain whitelist used by the Collector.
-func AllowedDomains(domains ...string) func(*Collector) {
-	return func(c *Collector) {
-		c.AllowedDomains = domains
-	}
-}
-
-// // ParseHTTPErrorResponse allows parsing responses with HTTP errors
-// func ParseHTTPErrorResponse() func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.ParseHTTPErrorResponse = true
-// 	}
-// }
-
-// // DisallowedDomains sets the domain blacklist used by the Collector.
-// func DisallowedDomains(domains ...string) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.DisallowedDomains = domains
-// 	}
-// }
-
-// // DisallowedURLFilters sets the list of regular expressions which restricts
-// // visiting URLs. If any of the rules matches to a URL the request will be stopped.
-// func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.DisallowedURLFilters = filters
-// 	}
-// }
-
-// // URLFilters sets the list of regular expressions which restricts
-// // visiting URLs. If any of the rules matches to a URL the request won't be stopped.
-// func URLFilters(filters ...*regexp.Regexp) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.URLFilters = filters
-// 	}
-// }
-
-// // AllowURLRevisit instructs the Collector to allow multiple downloads of the same URL
-// func AllowURLRevisit() func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.allowURLRevisit = true
-// 	}
-// }
-
-// // MaxBodySize sets the limit of the retrieved response body in bytes.
-// func MaxBodySize(sizeInBytes int) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.MaxBodySize = sizeInBytes
-// 	}
-// }
-
-// // CacheDir specifies the location where GET requests are cached as files.
-// func CacheDir(path string) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.CacheDir = path
-// 	}
-// }
-
-// // IgnoreRobotsTxt instructs the Collector to ignore any restrictions
-// // set by the target host's robots.txt file.
-// func IgnoreRobotsTxt() func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.IgnoreRobotsTxt = true
-// 	}
-// }
-
-// // ID sets the unique identifier of the Collector.
-// func ID(id uint32) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.ID = id
-// 	}
-// }
-
-// // Async turns on asynchronous network requests.
-// func Async(a bool) func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.Async = a
-// 	}
-// }
-
-// // DetectCharset enables character encoding detection for non-utf8 response bodies
-// // without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
-// func DetectCharset() func(*Collector) {
-// 	return func(c *Collector) {
-// 		c.DetectCharset = true
-// 	}
-// }
-
-// // Debugger sets the debugger used by the Collector.
-// func Debugger(d debug.Debugger) func(*Collector) {
-// 	return func(c *Collector) {
-// 		d.Init()
-// 		c.debugger = d
-// 	}
-// }
 
 //AllowURLRevisit value
 func (c *Collector) AllowURLRevisit() bool {
@@ -604,10 +529,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader,
 		c.handleOnError(response, err, request, ctx)
 	}
 
-	err = c.handleOnXML(response)
-	if err != nil {
-		c.handleOnError(response, err, request, ctx)
-	}
+	//todo
+	//err = c.handleOnXML(response)
+	// if err != nil {
+	// 	c.handleOnError(response, err, request, ctx)
+	// }
 
 	c.handleOnScraped(response)
 
@@ -726,15 +652,15 @@ func (c *Collector) OnRequest(f RequestCallback) {
 	c.lock.Unlock()
 }
 
-// // OnResponse registers a function. Function will be executed on every response
-// func (c *Collector) OnResponse(f ResponseCallback) {
-// 	c.lock.Lock()
-// 	if c.responseCallbacks == nil {
-// 		c.responseCallbacks = make([]ResponseCallback, 0, 4)
-// 	}
-// 	c.responseCallbacks = append(c.responseCallbacks, f)
-// 	c.lock.Unlock()
-// }
+// OnResponse registers a function. Function will be executed on every response
+func (c *Collector) OnResponse(f ResponseCallback) {
+	c.lock.Lock()
+	if c.responseCallbacks == nil {
+		c.responseCallbacks = make([]ResponseCallback, 0, 4)
+	}
+	c.responseCallbacks = append(c.responseCallbacks, f)
+	c.lock.Unlock()
+}
 
 // OnHTML registers a function. Function will be executed on every HTML
 // element matched by the GoQuery Selector parameter.
@@ -766,21 +692,21 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 // 	c.lock.Unlock()
 // }
 
-// // OnHTMLDetach deregister a function. Function will not be execute after detached
-// func (c *Collector) OnHTMLDetach(goquerySelector string) {
-// 	c.lock.Lock()
-// 	deleteIdx := -1
-// 	for i, cc := range c.htmlCallbacks {
-// 		if cc.Selector == goquerySelector {
-// 			deleteIdx = i
-// 			break
-// 		}
-// 	}
-// 	if deleteIdx != -1 {
-// 		c.htmlCallbacks = append(c.htmlCallbacks[:deleteIdx], c.htmlCallbacks[deleteIdx+1:]...)
-// 	}
-// 	c.lock.Unlock()
-// }
+// OnHTMLDetach deregister a function. Function will not be execute after detached
+func (c *Collector) OnHTMLDetach(goquerySelector string) {
+	c.lock.Lock()
+	deleteIdx := -1
+	for i, cc := range c.htmlCallbacks {
+		if cc.Selector == goquerySelector {
+			deleteIdx = i
+			break
+		}
+	}
+	if deleteIdx != -1 {
+		c.htmlCallbacks = append(c.htmlCallbacks[:deleteIdx], c.htmlCallbacks[deleteIdx+1:]...)
+	}
+	c.lock.Unlock()
+}
 
 // // OnXMLDetach deregister a function. Function will not be execute after detached
 // func (c *Collector) OnXMLDetach(xpathQuery string) {
@@ -798,27 +724,27 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 // 	c.lock.Unlock()
 // }
 
-// // OnError registers a function. Function will be executed if an error
-// // occurs during the HTTP request.
-// func (c *Collector) OnError(f ErrorCallback) {
-// 	c.lock.Lock()
-// 	if c.errorCallbacks == nil {
-// 		c.errorCallbacks = make([]ErrorCallback, 0, 4)
-// 	}
-// 	c.errorCallbacks = append(c.errorCallbacks, f)
-// 	c.lock.Unlock()
-// }
+// OnError registers a function. Function will be executed if an error
+// occurs during the HTTP request.
+func (c *Collector) OnError(f ErrorCallback) {
+	c.lock.Lock()
+	if c.errorCallbacks == nil {
+		c.errorCallbacks = make([]ErrorCallback, 0, 4)
+	}
+	c.errorCallbacks = append(c.errorCallbacks, f)
+	c.lock.Unlock()
+}
 
-// // OnScraped registers a function. Function will be executed after
-// // OnHTML, as a final part of the scraping.
-// func (c *Collector) OnScraped(f ScrapedCallback) {
-// 	c.lock.Lock()
-// 	if c.scrapedCallbacks == nil {
-// 		c.scrapedCallbacks = make([]ScrapedCallback, 0, 4)
-// 	}
-// 	c.scrapedCallbacks = append(c.scrapedCallbacks, f)
-// 	c.lock.Unlock()
-// }
+// OnScraped registers a function. Function will be executed after
+// OnHTML, as a final part of the scraping.
+func (c *Collector) OnScraped(f ScrapedCallback) {
+	c.lock.Lock()
+	if c.scrapedCallbacks == nil {
+		c.scrapedCallbacks = make([]ScrapedCallback, 0, 4)
+	}
+	c.scrapedCallbacks = append(c.scrapedCallbacks, f)
+	c.lock.Unlock()
+}
 
 // // WithTransport allows you to set a custom http.RoundTripper (transport)
 // func (c *Collector) WithTransport(transport http.RoundTripper) {
@@ -894,7 +820,7 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 // 	}
 // }
 
-func (c *Collector) handleOnRequest(r *core.Request) {
+func (c *Collector) handleOnRequest(r *Request) {
 	//todo
 	// if c.debugger != nil {
 	// 	c.debugger.Event(createEvent("request", r.ID, c.ID, map[string]string{
@@ -906,7 +832,7 @@ func (c *Collector) handleOnRequest(r *core.Request) {
 	}
 }
 
-func (c *Collector) handleOnResponse(r *core.Response) {
+func (c *Collector) handleOnResponse(r *Response) {
 	//todo
 	// if c.debugger != nil {
 	// 	c.debugger.Event(createEvent("response", r.Request.ID, c.ID, map[string]string{
@@ -919,7 +845,7 @@ func (c *Collector) handleOnResponse(r *core.Response) {
 	}
 }
 
-func (c *Collector) handleOnHTML(resp *core.Response) error {
+func (c *Collector) handleOnHTML(resp *Response) error {
 	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
 		return nil
 	}
@@ -952,69 +878,69 @@ func (c *Collector) handleOnHTML(resp *core.Response) error {
 	return nil
 }
 
-func (c *Collector) handleOnXML(resp *core.Response) error {
-	if len(c.xmlCallbacks) == 0 {
-		return nil
-	}
-	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	if !strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml") {
-		return nil
-	}
+// func (c *Collector) handleOnXML(resp *Response) error {
+// 	if len(c.xmlCallbacks) == 0 {
+// 		return nil
+// 	}
+// 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+// 	if !strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml") {
+// 		return nil
+// 	}
 
-	if strings.Contains(contentType, "html") {
-		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
-		if err != nil {
-			return err
-		}
-		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
-			for _, a := range e.Attr {
-				if a.Key == "href" {
-					//resp.Request.baseURL, _ = url.Parse(a.Val)
-					u, _ := url.Parse(a.Val)
-					resp.Request.SetBaseURL(u)
+// 	if strings.Contains(contentType, "html") {
+// 		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
+// 			for _, a := range e.Attr {
+// 				if a.Key == "href" {
+// 					//resp.Request.baseURL, _ = url.Parse(a.Val)
+// 					u, _ := url.Parse(a.Val)
+// 					resp.Request.SetBaseURL(u)
 
-					break
-				}
-			}
-		}
+// 					break
+// 				}
+// 			}
+// 		}
 
-		for _, cc := range c.xmlCallbacks {
-			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
-				e := query.NewXMLElementFromHTMLNode(resp, n)
-				//todo
-				// if c.debugger != nil {
-				// 	c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
-				// 		"selector": cc.Query,
-				// 		"url":      resp.Request.URL.String(),
-				// 	}))
-				// }
-				cc.Function(e)
-			})
-		}
-	} else if strings.Contains(contentType, "xml") {
-		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
-		if err != nil {
-			return err
-		}
+// 		for _, cc := range c.xmlCallbacks {
+// 			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+// 				e := query.NewXMLElementFromHTMLNode(resp, n)
+// 				//todo
+// 				// if c.debugger != nil {
+// 				// 	c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
+// 				// 		"selector": cc.Query,
+// 				// 		"url":      resp.Request.URL.String(),
+// 				// 	}))
+// 				// }
+// 				cc.Function(e)
+// 			})
+// 		}
+// 	} else if strings.Contains(contentType, "xml") {
+// 		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
+// 		if err != nil {
+// 			return err
+// 		}
 
-		for _, cc := range c.xmlCallbacks {
-			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
-				e := query.NewXMLElementFromXMLNode(resp, n)
-				//todo
-				// if c.debugger != nil {
-				// 	c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
-				// 		"selector": cc.Query,
-				// 		"url":      resp.Request.URL.String(),
-				// 	}))
-				// }
-				cc.Function(e)
-			})
-		}
-	}
-	return nil
-}
+// 		for _, cc := range c.xmlCallbacks {
+// 			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
+// 				e := query.NewXMLElementFromXMLNode(resp, n)
+// 				//todo
+// 				// if c.debugger != nil {
+// 				// 	c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
+// 				// 		"selector": cc.Query,
+// 				// 		"url":      resp.Request.URL.String(),
+// 				// 	}))
+// 				// }
+// 				cc.Function(e)
+// 			})
+// 		}
+// 	}
+// 	return nil
+// }
 
-func (c *Collector) handleOnError(response *core.Response, err error, request *core.Request, ctx *core.Context) error {
+func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *core.Context) error {
 	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
 		return nil
 	}
@@ -1046,7 +972,7 @@ func (c *Collector) handleOnError(response *core.Response, err error, request *c
 	return err
 }
 
-func (c *Collector) handleOnScraped(r *core.Response) {
+func (c *Collector) handleOnScraped(r *Response) {
 	//todo
 	// if c.debugger != nil {
 	// 	c.debugger.Event(createEvent("scraped", r.Request.ID, c.ID, map[string]string{
