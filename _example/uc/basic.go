@@ -106,6 +106,5 @@ func getContentInBrace(str string, startIndex int) []byte {
 		return nil
 	}
 
-	// return buf.String()[1 : len(buf.String())-1]
-	return buf.Bytes() //   .String()
+	return buf.Bytes() //
 }
