@@ -31,11 +31,11 @@ type Image struct {
 
 //DocCard 存放内容的卡片
 type DocCard struct {
-	OrigHTML   string      `json:"origHtml"`
 	Content    string      `json:"content"`
 	Title      string      `json:"title"` //,omitempty在序列化的时候忽略0值或者空值
 	Thumbnails []Thumbnail `json:"thumbnails"`
 	Images     []Image     `json:"images"`
+	OrigHTML   string      `json:"origHtml"`
 }
 
 // Save saves model in the file
