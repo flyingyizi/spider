@@ -2,6 +2,8 @@ package spider
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"os"
 )
 
@@ -60,4 +62,22 @@ func (f *DocCard) Load(path string) error {
 	file.Close()
 
 	return err
+}
+
+//UrlFlags 命令行输入网址，如果命令行不输入网址，则以initUrl作为命令行输入的网址
+func UrlFlags(initUrl string) []string {
+	usage := func() {
+		fmt.Fprintf(os.Stderr, `default input paramenters are urls seprated by space
+	`)
+		flag.PrintDefaults()
+	}
+
+	flag.Usage = usage
+
+	flag.Parse()
+	others := flag.Args()
+	if len(others) == 0 {
+		others = append(others, initUrl)
+	}
+	return others
 }

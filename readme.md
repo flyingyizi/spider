@@ -38,3 +38,7 @@
     ```shell
     docker run -d -p 9222:9222 --rm --name headless-shell chromedp/headless-shell
     ```
+
+[Intercepting and Modifying responses with Chrome via the Devtools Protocol](https://blog.shapesecurity.com/2018/09/17/intercepting-and-modifying-responses-with-chrome-via-the-devtools-protocol/),对应中文翻译[https://www.anquanke.com/post/id/160160](https://www.anquanke.com/post/id/160160)
+
+[Getting Started with Headless Chrome ](https://developers.google.cn/web/updates/2017/04/headless-chrome),对应中文翻译[Headless Chrome 入门 ](https://linux.cn/article-8850-1.html)

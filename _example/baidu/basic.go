@@ -1,24 +1,32 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/flyingyizi/spider"
 	"github.com/flyingyizi/spider/query"
 )
 
-// https://cpu.baidu.com/api/1022/b9268e89/detail/25738154162040646/news?no_list=1&scene=2&forward=api&bside=1&api_version=2&appid=hwbrowser&ctype=news
-
 func main() {
 	startURL := "https://cpu.baidu.com/api/1022/b9268e89/detail/25738154162040646/news?no_list=1&scene=2&forward=api&bside=1&api_version=2&appid=hwbrowser&ctype=news"
-	getbaiduNews(startURL)
+	urls := spider.UrlFlags(startURL)
+
+	start := time.Now()
+	for i, url := range urls {
+		out := getbaiduNews(url)
+		fmt.Printf("------output-----%d url----------\n", i)
+		fmt.Println(out)
+
+	}
+	elapsed := time.Since(start)
+	fmt.Printf("Time required to complete: %s\n", elapsed)
 }
 
-func getbaiduNews(url string) {
+func getbaiduNews(url string) (out string) {
 	d := spider.DocCard{}
 
 	var bodyData []byte
@@ -63,7 +71,7 @@ func getbaiduNews(url string) {
 
 	c.OnScraped(func(_ *spider.Response) {
 		bData, _ := json.MarshalIndent(d, "", "\t")
-		fmt.Println(string(bData))
+		out = string(bData)
 	})
 
 	err := c.Visit(url)
@@ -71,7 +79,7 @@ func getbaiduNews(url string) {
 		return
 	}
 
-	d.OrigHTML = base64.StdEncoding.EncodeToString(bodyData)
-	d.Save("abc.json")
-
+	//d.OrigHTML = base64.StdEncoding.EncodeToString(bodyData)
+	//d.Save("abc.json")
+	return
 }

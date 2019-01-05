@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/flyingyizi/spider"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/client"
@@ -16,6 +18,8 @@ func main() {
 	start := time.Now()
 	startURL := "https://m.ifeng.com/huaweillqtest?appid=hwbrowser&ch=ref_hwllq_dl1&type=doc&aid=ucms_7j9jR0XW9MD&ctype=news"
 
+	urls := spider.UrlFlags(startURL)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cdp, err := HeadlesswithStandlone(ctx)
@@ -24,15 +28,17 @@ func main() {
 		return
 	}
 
-	var html string
-	err = cdp.Run(ctx, GetHtmlAction(startURL, &html))
-	if err != nil {
-		// 错误处理
-		return
+	for i, url := range urls {
+		var html string
+		err = cdp.Run(ctx, GetHtmlAction(url, &html))
+		if err != nil {
+			// 错误处理
+			return
+		}
+		// 成功取得HTML内容进行后续处理
+		fmt.Printf("------output-----%d url----------\n", i)
+		analyzeIfeng([]byte(html))
 	}
-	// 成功取得HTML内容进行后续处理
-	//fmt.Println(html)
-	analyzeIfeng([]byte(html))
 
 	//关闭chrome实例
 	err = cdp.Shutdown(ctx)
@@ -48,7 +54,6 @@ func main() {
 
 	elapsed := time.Since(start)
 	fmt.Printf("Time required to complete: %s\n", elapsed)
-
 }
 
 func GetHtmlAction(url string, res *string) chromedp.Tasks {
@@ -96,26 +101,6 @@ func analyzeIfeng(bodyData []byte) {
 		}
 
 	}
-
-	//fmt.Println(destScript)
-
-	//解析出js代码中xissJsonData变量的值
-	// startIndex := strings.Index(destScript, key1)
-	// xissJsonData := getContentInBrace(destScript, startIndex)
-	//fmt.Println(string(xissJsonData))
-
-	type XissJSONData struct {
-		Content string `json:"content"`
-	}
-	// if err := json.Unmarshal(xissJsonData, &d); err == nil {
-	// 	//fmt.Println(d)
-	// } else {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	//d.OrigHTML = base64.StdEncoding.EncodeToString(bodyData)
-
-	//d.Save("efg.json")
 
 }
 

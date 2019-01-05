@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/flyingyizi/spider"
@@ -36,12 +37,23 @@ func (f *ToutiaoChannel) Save(path string) error {
 
 func main() {
 	//startURL := "https://www.toutiao.com/ch/news_entertainment/"
-	startURL1 := "https://www.toutiao.com/ch/news_tech/"
-	getToutiaoChannel(startURL1)
-	//unicode2ZH("")
+	startURL := "https://www.toutiao.com/ch/news_tech/"
+
+	urls := spider.UrlFlags(startURL)
+
+	start := time.Now()
+	for i, url := range urls {
+		out := getToutiaoChannel(url)
+		fmt.Printf("------output-----%d url----------\n", i)
+		fmt.Println(out)
+
+	}
+	elapsed := time.Since(start)
+	fmt.Printf("Time required to complete: %s\n", elapsed)
+
 }
 
-func getToutiaoChannel(url string) {
+func getToutiaoChannel(url string) (out string) {
 	d := ToutiaoChannel{}
 
 	var (
@@ -92,14 +104,14 @@ func getToutiaoChannel(url string) {
 
 	c.OnScraped(func(_ *spider.Response) {
 		bData, _ := json.MarshalIndent(d, "", "\t")
-		fmt.Println(string(bData))
+		out = string(bData)
 	})
 
 	err := c.Visit(url)
 	if err != nil {
 		return
 	}
-
+	return
 	// d.OrigHTML = base64.StdEncoding.EncodeToString(bodyData)
 	//d.Save("abc.json")
 
