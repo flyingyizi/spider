@@ -1,0 +1,13 @@
+c:\home\GO\src\github.com\flyingyizi\spider\_example\ifeng>go run headless.go
+原标题：《元珽妻穆玉容墓志》刚强中透着温婉之姿，笔法古拙劲正秀逸端雅
+当下学习魏碑的朋友也越来越多了，魏碑是楷书的一种，同时是一种由隶书向楷书过渡的一种过渡性楷书，主要分为碑刻、墓志、造像题记和摩崖刻石四种，而《元珽妻穆玉容墓志》就属于墓志，下面就分享出来供朋友们欣赏交流提高。
+http://d.ifengimg.com/mw640_q100/e0.ifengimg.com/12/2019/0103/E8FC9577D0D82EC9CA217E3A9B349AEF469BEFC7_size83_w627_h810.jpeg
+《元珽妻穆玉容墓志》从整体上看刚强中透着温婉之姿，秀逸端雅，笔法古拙劲正，而风格质朴方严，字形丰腴，结体端严简古，这种书体一个最大的特点就是兼有隶书和楷书两种书体的神韵，棱角分明，雄强古朴，正是由于这些特点，很多朋友都喜欢，并且也有很多书家推崇魏碑，由此可见，魏碑在中国书法史的地位不容小觑。
+http://d.ifengimg.com/mw640_q100/e0.ifengimg.com/04/2019/0103/519F7AD042869758195A6740FA6400683159D5DC_size76_w640_h817.jpeg
+当前能擅魏碑者少，但是我们也要看到未来，这需要朋友们真正潜下心来认真揣摩领会才能弄清楚魏碑的精髓，你喜欢这作品吗？分享点赞哟。
+http://d.ifengimg.com/mw640_q100/e0.ifengimg.com/09/2019/0103/B5083F99F4DFAE63683D85A39F8FAA454B3BC8AE_size80_w640_h823.jpeg
+http://d.ifengimg.com/mw640_q100/e0.ifengimg.com/10/2019/0103/81A4862574AD1039C95CC69908345B7B11802391_size76_w640_h831.jpeg
+http://d.ifengimg.com/mw640_q100/e0.ifengimg.com/06/2019/0103/F6609E26A264D85788AFF5643DFA4D2CAB40E087_size80_w640_h828.jpeg
+http://d.ifengimg.com/mw640_q100/e0.ifengimg.com/09/2019/0103/AF430D3A2F0B9DC6FE7D20F7C12C5156C24518B5_size76_w640_h813.jpeg
+
+Time required to complete: 1.7055939s

@@ -12,14 +12,14 @@ import (
 	"github.com/flyingyizi/spider"
 )
 
-type ToutiaoCard struct {
+type ChannelItem struct {
 	Title    string `json:"title"`
 	OpenUrl  string `json:"open_url"`
 	GroupID  string `json:"group_id"`
 	ImageUrl string `json:"image_url"`
 }
 type ToutiaoChannel struct {
-	RealTimeNews []ToutiaoCard `json:"real_time_news"`
+	RealTimeNews []ChannelItem `json:"real_time_news"`
 }
 
 // Save saves model in the file
@@ -35,12 +35,13 @@ func (f *ToutiaoChannel) Save(path string) error {
 }
 
 func main() {
-	startURL := "https://www.toutiao.com/ch/news_entertainment/"
-	getToutiaoNews(startURL)
+	//startURL := "https://www.toutiao.com/ch/news_entertainment/"
+	startURL1 := "https://www.toutiao.com/ch/news_tech/"
+	getToutiaoChannel(startURL1)
 	//unicode2ZH("")
 }
 
-func getToutiaoNews(url string) {
+func getToutiaoChannel(url string) {
 	d := ToutiaoChannel{}
 
 	var (
@@ -100,7 +101,7 @@ func getToutiaoNews(url string) {
 	}
 
 	// d.OrigHTML = base64.StdEncoding.EncodeToString(bodyData)
-	d.Save("abc.json")
+	//d.Save("abc.json")
 
 }
 

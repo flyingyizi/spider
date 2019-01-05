@@ -11,6 +11,9 @@
   - 场景1： JS中动态内容，实验对象“UC信息流抓取” , 实验代码  _example/uc/basic.go  
   - 场景2： 实验对象“微博热搜榜抓取” , 实验代码  _example/weibohotsou/basic.go  
   - 场景3： 实验对象“百度信息流抓取” , 实验代码  _example/baidu/basic.go  
+  - 场景4： 实验对象“凤凰信息流抓取” , 实验代码  _example/ifeng/headless.go  通过headless chrome抓取内容
+  - 场景5： 实验对象“一点咨询信息流抓取” , 实验代码  _example/yidianzixun/basic.go 
+  - 场景5： 实验对象“头条频道抓取” , 实验代码  _example/toutiaochannel/basic.go 
 
 ## 几个资源
 
@@ -31,4 +34,7 @@
   
   爬虫怎么把自己伪装为一个正常的浏览器用户，是爬虫一个很重要的方面。因此通过类似fiddler工具查看普通上网行为，伪装类似user-agent，http-header... 是常见的操作。
 
-
+- 安装headless chrome docker， ifeng 实验代码需要
+    ```shell
+    docker run -d -p 9222:9222 --rm --name headless-shell chromedp/headless-shell
+    ```
