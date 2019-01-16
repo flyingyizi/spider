@@ -99,9 +99,7 @@ func analyzeIfeng(bodyData []byte) {
 		} else {
 			fmt.Println(doc.Text())
 		}
-
 	}
-
 }
 
 // // Headless 通过自身创建headless chrome实例,
