@@ -1,8 +1,12 @@
+//example: go run scrapcomment.go -o "abc.md"  "https://github.com/gonum/plot/issues"
+
 package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -11,11 +15,43 @@ import (
 	"time"
 
 	"github.com/flyingyizi/spider"
-	"github.com/flyingyizi/spider/query"
 )
 
+// CommentSlice attaches the methods of Interface to []string, sorting in increasing order.
+type CommentSlice []*IssueComment
 type IssueComments struct {
-	C []*IssueComment `json:"list"`
+	C CommentSlice `json:"list"`
+}
+
+func (p CommentSlice) ToMarkDown(path string) {
+	// 可写方式打开文件
+	file, err := os.OpenFile(
+		path,
+		os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
+		0666,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	// 写字节到文件中
+	byteSlice := []byte("Bytes!\n")
+	bytesWritten, err := file.Write(byteSlice)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Wrote %d bytes.\n", bytesWritten)
+	for i, j := range p {
+		t := fmt.Sprintf("## %d.%s\n%s\n", i, j.Title, j.Time)
+		file.Write([]byte(t))
+
+		for _, k := range j.Contents {
+			tt := fmt.Sprintf("```text\n %s", k)
+			file.Write([]byte(tt))
+			file.Write([]byte("\n```\n"))
+		}
+	}
 }
 
 //IssueComment 存放内容的卡片
@@ -38,6 +74,8 @@ func (f *IssueComments) Save(path string) error {
 }
 
 func main() {
+	outfile := flag.String("o", "", "file stores the logs, default is outputing to terminal")
+
 	startURL := "https://github.com/fxsjy/jieba/issues"
 	urls := spider.UrlFlags(startURL)
 	var wg sync.WaitGroup
@@ -50,7 +88,7 @@ func main() {
 	}
 
 	//step 2
-	topicURLs := make(chan string, 100)
+	topicURLs := make(chan string, 0)
 	var wg2 sync.WaitGroup
 	var out sync.Map
 	for _, pageURL := range pageUrls {
@@ -64,20 +102,20 @@ func main() {
 	close(topicURLs)
 	wg2.Wait()
 
-	total := 0
-	result := IssueComments{C: make([]*IssueComment, 0)}
+	result := make(CommentSlice, 0)
 	out.Range(func(key, value interface{}) bool {
 		tmpval, valid := key.(*IssueComment)
 		if !valid {
 			return true //返回true，则range下一个key
 		}
-		result.C = append(result.C, tmpval)
-		total++
+		result = append(result, tmpval)
 		return true
 	})
-	result.Save("abc.json")
+	if *outfile != "" {
+		result.ToMarkDown(*outfile)
+	}
 	elapsed := time.Since(start)
-	fmt.Printf("total %d, Time required to complete: %s\n", total, elapsed)
+	fmt.Printf("total %d, Time required to complete: %s\n", len(result), elapsed)
 }
 
 //通过导航获取该issue的所有page list,
@@ -88,7 +126,7 @@ func producerContainer(issueURL string) (pageUrls []string) {
 	exp := regexp.MustCompile(`page=\d+`)
 	base, maxPage := "", 0
 	//更多主题列表
-	c.OnHTML(`div.repository-content > div > div.paginate-container > div > a`, func(e *query.HTMLElement) {
+	c.OnHTML(`div.repository-content > div > div.paginate-container > div > a`, func(e *spider.HTMLElement) {
 		if val, err := strconv.Atoi(e.Text); err == nil {
 			if val > maxPage {
 				maxPage = val
@@ -124,7 +162,7 @@ func getIssueTopicList(wg *sync.WaitGroup, pageURL string, topicURLs chan<- stri
 	c := spider.NewCollector()
 
 	//register 获取主题列表
-	c.OnHTML(`div.repository-content > div > div.border-right.border-bottom.border-left > div > div > div > div >a `, func(e *query.HTMLElement) {
+	c.OnHTML(`div.repository-content > div > div.border-right.border-bottom.border-left > div > div > div > div >a `, func(e *spider.HTMLElement) {
 		topicURLs <- "https://github.com" + e.Attr(`href`)
 		// fmt.Println(e.Attr(`href`), e.Text)
 		// fmt.Println("*********")
@@ -148,24 +186,26 @@ func getIssueComment(wg *sync.WaitGroup, topicURLs <-chan string, out *sync.Map)
 	c := spider.NewCollector()
 
 	//主题
-	c.OnHTML(`#partial-discussion-header > div.gh-header-show > h1 > span.js-issue-title`, func(e *query.HTMLElement) {
+	c.OnHTML(`#partial-discussion-header > div.gh-header-show > h1 > span.js-issue-title`, func(e *spider.HTMLElement) {
 		d.Title = strings.TrimSpace(strings.TrimSpace(e.Text))
 	})
 	//时间
-	c.OnHTML(`#partial-discussion-header > div.TableObject.gh-header-meta > div.TableObject-item.TableObject-item--primary > relative-time`, func(e *query.HTMLElement) {
+	c.OnHTML(`#partial-discussion-header > div.TableObject.gh-header-meta > div.TableObject-item.TableObject-item--primary > relative-time`, func(e *spider.HTMLElement) {
 		d.Time = strings.TrimSpace(strings.TrimSpace(e.Text))
 		//fmt.Println(e.Text)
 	})
 
 	//评论内容
-	c.OnHTML(`div.edit-comment-hide > task-lists > table > tbody > tr > td`, func(e *query.HTMLElement) {
+	c.OnHTML(`div.edit-comment-hide > task-lists > table > tbody > tr > td`, func(e *spider.HTMLElement) {
 		d.Contents = append(d.Contents, strings.TrimSpace(strings.TrimSpace(e.Text)))
 		// fmt.Println(strings.TrimSpace(e.Text))
 		// fmt.Println("------------------------------------------")
 	})
 
-	c.OnScraped(func(_ *spider.Response) {
-		out.Store(&d, 1)
+	c.OnScraped(func(r *spider.Response) {
+		copyd := new(IssueComment)
+		*copyd = d
+		out.Store(copyd, r.Request.URL)
 		//out <- &d
 	})
 	for topicURL := range topicURLs {
