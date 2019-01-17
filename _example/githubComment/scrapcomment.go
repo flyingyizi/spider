@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/flyingyizi/spider"
@@ -12,20 +15,18 @@ import (
 )
 
 type IssueComments struct {
+	C []*IssueComment `json:"list"`
 }
 
 //IssueComment 存放内容的卡片
 type IssueComment struct {
-	Time     string    `json:"time"`
-	Title    string    `json:"title"` //,omitempty在序列化的时候忽略0值或者空值
-	Contents []Content `json:"contents"`
-}
-type Content struct {
-	Text string `json:"text"`
+	Time     string   `json:"time"`
+	Title    string   `json:"title"` //,omitempty在序列化的时候忽略0值或者空值
+	Contents []string `json:"contents"`
 }
 
 // Save saves model in the file
-func (f *IssueComment) Save(path string) error {
+func (f *IssueComments) Save(path string) error {
 
 	file, err := os.Create(path)
 	if err == nil {
@@ -36,88 +37,119 @@ func (f *IssueComment) Save(path string) error {
 	return err
 }
 
-// https://github.com/fxsjy/jieba/issues/87
-
 func main() {
-	//startURL := "https://github.com/fxsjy/jieba/issues/87"
-	startURL1 := "https://github.com/fxsjy/jieba/issues"
-	urls := spider.UrlFlags(startURL1)
-
+	startURL := "https://github.com/fxsjy/jieba/issues"
+	urls := spider.UrlFlags(startURL)
+	var wg sync.WaitGroup
+	pageUrls := make([]string, 100)
 	start := time.Now()
-	for i, url := range urls {
-		out := getIssueList(url)
-		fmt.Printf("------output-----%d url----------\n", i)
-		fmt.Println(out)
-
+	//step 1:
+	for _, issueURL := range urls {
+		ps := producerContainer(issueURL)
+		pageUrls = append(pageUrls, ps...)
 	}
+
+	//step 2
+	topicURLs := make(chan string, 100)
+	var wg2 sync.WaitGroup
+	var out sync.Map
+	for _, pageURL := range pageUrls {
+		wg.Add(1)
+		go getIssueTopicList(&wg, pageURL, topicURLs)
+
+		wg2.Add(1)
+		go getIssueComment(&wg2, topicURLs, &out)
+	}
+	wg.Wait()
+	close(topicURLs)
+	wg2.Wait()
+
+	total := 0
+	result := IssueComments{C: make([]*IssueComment, 0)}
+	out.Range(func(key, value interface{}) bool {
+		tmpval, valid := key.(*IssueComment)
+		if !valid {
+			return true //返回true，则range下一个key
+		}
+		result.C = append(result.C, tmpval)
+		total++
+		return true
+	})
+	result.Save("abc.json")
 	elapsed := time.Since(start)
-	fmt.Printf("Time required to complete: %s\n", elapsed)
+	fmt.Printf("total %d, Time required to complete: %s\n", total, elapsed)
 }
 
-//爬取issue list url，以便后续爬取评论内容
-func getIssueList(url string) []string {
-	//urls := make([]string, 0)
-
+//通过导航获取该issue的所有page list,
+// 获取到的page url 放到pageUrls chan
+func producerContainer(issueURL string) (pageUrls []string) {
 	c := spider.NewCollector()
 
-	// c.OnResponse(func(r *spider.Response) {
-	// 	bodyData = r.Body
-	// })
-
-	//主题列表
-	c.OnHTML(`div.repository-content > div > div.border-right.border-bottom.border-left > div > div > div > div >a `, func(e *query.HTMLElement) {
-
-		// content := ""
-		// e.ForEach("div > a", func(_ int, ss *spider.HTMLElement) {
-		// 	temp := ss.Attr(`href`)
-		// 	if !strings.EqualFold(temp, "") {
-		// 		content = content + ss.Attr(`href`) + ":" + strings.TrimSpace(ss.Text) + "\n"
-		// 	}
-		// })
-		// fmt.Println(content)
-		//d.Content = content
-
-		fmt.Println(e.Attr(`href`), e.Text)
-		fmt.Println("*********")
-	})
+	exp := regexp.MustCompile(`page=\d+`)
+	base, maxPage := "", 0
 	//更多主题列表
 	c.OnHTML(`div.repository-content > div > div.paginate-container > div > a`, func(e *query.HTMLElement) {
+		if val, err := strconv.Atoi(e.Text); err == nil {
+			if val > maxPage {
+				maxPage = val
+				base = e.Attr(`href`)
+			}
+		}
+		// fmt.Printf("==========%s%s\n", e.Attr(`href`), e.Text)
+		// fmt.Println("==================")
+	})
+	//
+	c.OnScraped(func(_ *spider.Response) {
+		first, second := "", ""
+		if loc := exp.FindIndex([]byte(base)); len(loc) == 2 {
+			first, second = base[0:loc[0]], base[loc[1]:]
+		}
+		pageUrls = make([]string, 0)
+		for i := 1; i <= maxPage; i++ {
+			p := fmt.Sprintf("https://github.com%spage=%d%s", first, i, second)
+			pageUrls = append(pageUrls, p)
+		}
+	})
 
-		fmt.Println(e.Attr(`href`), e.Text)
-		fmt.Println("==========")
+	err := c.Visit(issueURL)
+	if err != nil {
+		return
+	}
+	return
+}
+
+//爬取issue topic url list，以便后续爬取评论内容
+func getIssueTopicList(wg *sync.WaitGroup, pageURL string, topicURLs chan<- string) {
+	defer wg.Done()
+	c := spider.NewCollector()
+
+	//register 获取主题列表
+	c.OnHTML(`div.repository-content > div > div.border-right.border-bottom.border-left > div > div > div > div >a `, func(e *query.HTMLElement) {
+		topicURLs <- "https://github.com" + e.Attr(`href`)
+		// fmt.Println(e.Attr(`href`), e.Text)
+		// fmt.Println("*********")
 	})
 
 	// c.OnScraped(func(_ *spider.Response) {
-	// 	bData, _ := json.MarshalIndent(d, "", "\t")
-	// 	out = string(bData)
 	// })
 
-	err := c.Visit(url)
+	err := c.Visit(pageURL)
 	if err != nil {
-		return nil
+		return
 	}
-
-	return nil
+	return
 }
 
 //爬取某个特定issue
-func getIssueComment(url string) *IssueComment {
+func getIssueComment(wg *sync.WaitGroup, topicURLs <-chan string, out *sync.Map) {
+	defer wg.Done()
+
 	d := IssueComment{}
-	scraped := false
-
-	// var bodyData []byte
-	// Instantiate default collector
 	c := spider.NewCollector()
-
-	// c.OnResponse(func(r *spider.Response) {
-	// 	bodyData = r.Body
-	// })
 
 	//主题
 	c.OnHTML(`#partial-discussion-header > div.gh-header-show > h1 > span.js-issue-title`, func(e *query.HTMLElement) {
 		d.Title = strings.TrimSpace(strings.TrimSpace(e.Text))
-		//fmt.Println(d.Title)
-		scraped = true
 	})
 	//时间
 	c.OnHTML(`#partial-discussion-header > div.TableObject.gh-header-meta > div.TableObject-item.TableObject-item--primary > relative-time`, func(e *query.HTMLElement) {
@@ -127,25 +159,21 @@ func getIssueComment(url string) *IssueComment {
 
 	//评论内容
 	c.OnHTML(`div.edit-comment-hide > task-lists > table > tbody > tr > td`, func(e *query.HTMLElement) {
-		con := Content{Text: strings.TrimSpace(strings.TrimSpace(e.Text))}
-		d.Contents = append(d.Contents, con)
+		d.Contents = append(d.Contents, strings.TrimSpace(strings.TrimSpace(e.Text)))
 		// fmt.Println(strings.TrimSpace(e.Text))
 		// fmt.Println("------------------------------------------")
 	})
 
-	// c.OnScraped(func(_ *spider.Response) {
-	// 	bData, _ := json.MarshalIndent(d, "", "\t")
-	// 	out = string(bData)
-	// })
-
-	err := c.Visit(url)
-	if err != nil {
-		return nil
+	c.OnScraped(func(_ *spider.Response) {
+		out.Store(&d, 1)
+		//out <- &d
+	})
+	for topicURL := range topicURLs {
+		err := c.Visit(topicURL)
+		if err != nil {
+			//return
+		}
 	}
 
-	if scraped {
-		return &d
-	}
-
-	return nil
+	return
 }
