@@ -1,14 +1,15 @@
+//导出github某个archive的issue
 //example: go run scrapcomment.go -o "abc.md"  "https://github.com/gonum/plot/issues"
 
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,62 +17,6 @@ import (
 
 	"github.com/flyingyizi/spider"
 )
-
-// CommentSlice attaches the methods of Interface to []string, sorting in increasing order.
-type CommentSlice []*IssueComment
-type IssueComments struct {
-	C CommentSlice `json:"list"`
-}
-
-func (p CommentSlice) ToMarkDown(path string) {
-	// 可写方式打开文件
-	file, err := os.OpenFile(
-		path,
-		os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
-		0666,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-	// 写字节到文件中
-	byteSlice := []byte("Bytes!\n")
-	bytesWritten, err := file.Write(byteSlice)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("Wrote %d bytes.\n", bytesWritten)
-	for i, j := range p {
-		t := fmt.Sprintf("## %d.%s\n%s\n", i, j.Title, j.Time)
-		file.Write([]byte(t))
-
-		for _, k := range j.Contents {
-			tt := fmt.Sprintf("```text\n %s", k)
-			file.Write([]byte(tt))
-			file.Write([]byte("\n```\n"))
-		}
-	}
-}
-
-//IssueComment 存放内容的卡片
-type IssueComment struct {
-	Time     string   `json:"time"`
-	Title    string   `json:"title"` //,omitempty在序列化的时候忽略0值或者空值
-	Contents []string `json:"contents"`
-}
-
-// Save saves model in the file
-func (f *IssueComments) Save(path string) error {
-
-	file, err := os.Create(path)
-	if err == nil {
-		encoder := json.NewEncoder(file)
-		err = encoder.Encode(f)
-	}
-	file.Close()
-	return err
-}
 
 func main() {
 	outfile := flag.String("o", "", "file stores the logs, default is outputing to terminal")
@@ -111,8 +56,11 @@ func main() {
 		result = append(result, tmpval)
 		return true
 	})
-	if *outfile != "" {
-		result.ToMarkDown(*outfile)
+	result.Sort()
+
+	md := result.ToMarkDown(*outfile)
+	if *outfile == "" {
+		fmt.Println(md)
 	}
 	elapsed := time.Since(start)
 	fmt.Printf("total %d, Time required to complete: %s\n", len(result), elapsed)
@@ -206,7 +154,6 @@ func getIssueComment(wg *sync.WaitGroup, topicURLs <-chan string, out *sync.Map)
 		copyd := new(IssueComment)
 		*copyd = d
 		out.Store(copyd, r.Request.URL)
-		//out <- &d
 	})
 	for topicURL := range topicURLs {
 		err := c.Visit(topicURL)
@@ -217,3 +164,83 @@ func getIssueComment(wg *sync.WaitGroup, topicURLs <-chan string, out *sync.Map)
 
 	return
 }
+
+// CommentSlice attaches the methods of Interface to []string, sorting in increasing order.
+type CommentSlice []*IssueComment
+
+func (p CommentSlice) Len() int      { return len(p) }
+func (p CommentSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p CommentSlice) Less(i, j int) bool {
+	layout1, layout2 := `Jan 2, 2006`, `Jan 02, 2006`
+	var (
+		tm1, tm2   time.Time
+		err1, err2 error
+	)
+
+	first, second := p[i].Time, p[j].Time
+	if tm1, err1 = time.Parse(layout1, first); err1 != nil {
+		tm1, err1 = time.Parse(layout2, first)
+	}
+	if tm2, err2 = time.Parse(layout1, second); err1 != nil {
+		tm2, err2 = time.Parse(layout2, second)
+	}
+	//如果出现这个panic，那说明layout不对
+	if err1 != nil {
+		panic(err1)
+	}
+	if err2 != nil {
+		panic(err2)
+	}
+
+	return tm1.Unix() > tm2.Unix()
+}
+
+// Sort is a convenience method.
+func (p CommentSlice) Sort() { sort.Sort(p) }
+
+func (p CommentSlice) ToMarkDown(path string) (out string) {
+	out = ""
+	for i, j := range p {
+		out = out + fmt.Sprintf("## %d.%s\n%s\n", i, j.Title, j.Time)
+
+		for _, k := range j.Contents {
+			out = out + fmt.Sprintf("```text\n %s", k)
+			out = out + "\n```\n"
+		}
+	}
+
+	if path != "" {
+		// 可写方式打开文件
+		file, err := os.OpenFile(
+			path,
+			os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
+			0666,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+		// 写字节到文件中
+		file.Write([]byte(out))
+	}
+	return
+}
+
+//IssueComment 存放内容的卡片
+type IssueComment struct {
+	Time     string   `json:"time"`
+	Title    string   `json:"title"` //,omitempty在序列化的时候忽略0值或者空值
+	Contents []string `json:"contents"`
+}
+
+// // Save saves model in the file
+// func (f *IssueComment) Save(path string) error {
+
+// 	file, err := os.Create(path)
+// 	if err == nil {
+// 		encoder := json.NewEncoder(file)
+// 		err = encoder.Encode(f)
+// 	}
+// 	file.Close()
+// 	return err
+// }
