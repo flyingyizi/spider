@@ -7,7 +7,8 @@ import (
 	"strings"
 
 	"github.com/flyingyizi/spider"
-	"github.com/flyingyizi/spider/query"
+	//或使用下面的库
+	//spider ""github.com/gocolly/colly"
 )
 
 type WeiboRealTimeHot struct {
@@ -51,7 +52,7 @@ func GetweiborealTimeHotUC(url string) {
 	// </table>
 
 	dlist := make([]*WeiboRealTimeHot, 0)
-	c.OnHTML(`#pl_top_realtimehot > table > tbody`, func(e *query.HTMLElement) {
+	c.OnHTML(`#pl_top_realtimehot > table > tbody`, func(e *spider.HTMLElement) {
 		e.ForEach("tr", func(_ int, trSel *spider.HTMLElement) {
 			d := WeiboRealTimeHot{}
 			trSel.ForEach("td", func(j int, tbSel *spider.HTMLElement) {

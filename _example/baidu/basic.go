@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/flyingyizi/spider"
-	"github.com/flyingyizi/spider/query"
+	//或使用下面的库
+	//spider ""github.com/gocolly/colly"
 )
 
 func main() {
@@ -38,13 +39,13 @@ func getbaiduNews(url string) (out string) {
 	})
 
 	//xpath: `//head/title`
-	c.OnHTML(`head>title`, func(e *query.HTMLElement) {
+	c.OnHTML(`head>title`, func(e *spider.HTMLElement) {
 		d.Title = strings.TrimSpace(e.Text)
 		fmt.Println(d.Title)
 	})
 
 	//正文+图片
-	c.OnHTML(`#main-content>div>div>div>div.article.container >div`, func(e *query.HTMLElement) {
+	c.OnHTML(`#main-content>div>div>div>div.article.container >div`, func(e *spider.HTMLElement) {
 		//正文
 		content := ""
 		e.ForEach("p", func(_ int, ss *spider.HTMLElement) {

@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/flyingyizi/spider"
+	//或使用下面的库
+	//spider ""github.com/gocolly/colly"
 )
 
 func main() {

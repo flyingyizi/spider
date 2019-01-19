@@ -11,6 +11,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/flyingyizi/spider"
+	//或使用下面的库
+	//spider ""github.com/gocolly/colly"
 )
 
 type ChannelItem struct {
@@ -97,7 +99,7 @@ func getToutiaoChannel(url string) (out string) {
 	})
 
 	//xpath: `//head/title`
-	// c.OnHTML(`head>title`, func(e *query.HTMLElement) {
+	// c.OnHTML(`head>title`, func(e *spider.HTMLElement) {
 	// 	d.Title = strings.TrimSpace(e.Text)
 	// 	//fmt.Println(d.Title)
 	// })

@@ -9,7 +9,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/flyingyizi/spider"
-	"github.com/flyingyizi/spider/query"
 )
 
 // https://m.uczzd.cn/webview/news?app=huawei-iflow&aid=3091260259678083253&cid=100&zzd_from=huawei-iflow&uc_param_str=dndsfrvesvntnwpfgibicpkt&recoid=859544137256752847&rd_type=reco&sp_gz=1&enuid=AANA1zeV8aROM%2FjV3SPP4HAxwsLLuvuIpl56ol5ZzlXQuw%3D%3D
@@ -33,7 +32,7 @@ func getUC(url string) {
 	})
 
 	//xpath: `//head/title`
-	c.OnHTML(`head>title`, func(e *query.HTMLElement) {
+	c.OnHTML(`head>title`, func(e *spider.HTMLElement) {
 		d.Title = strings.TrimSpace(e.Text)
 		//fmt.Println(d.Title)
 	})
